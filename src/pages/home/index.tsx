@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Button, ScrollView, Input } from '@tarojs/components';
+import { useDidShow } from '@tarojs/taro';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import dayjs from 'dayjs';
@@ -25,10 +26,10 @@ const factorOptions = [
 const HomePage: React.FC = () => {
   const {
     scheduleMode, sleepPlan, todayRecord, consecutiveLateNights,
-    reminder, setReminderEnabled, setReminderMinutesBefore,
+    reminder, setReminderEnabled, setReminderMinutesBefore, dismissReminder,
     setTodayRecord, generateSleepPlan, updateCourses,
     checkInSleep, updateTodayFactors, updateConsecutiveLateNights,
-    historyRecords, getWeeklyStats,
+    getWeeklyStats, isInitialized, markInitialized,
   } = useSleepStore();
 
   const [currentTime, setCurrentTime] = useState(dayjs());
@@ -39,10 +40,11 @@ const HomePage: React.FC = () => {
   const [showReminderAlert, setShowReminderAlert] = useState(false);
 
   useEffect(() => {
-    if (historyRecords.length === 0) {
+    if (!isInitialized) {
       updateCourses(mockCourses);
       setTodayRecord(mockTodayRecord);
       generateSleepPlan();
+      markInitialized();
     }
     if (!sleepPlan) {
       generateSleepPlan();
@@ -56,6 +58,16 @@ const HomePage: React.FC = () => {
 
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (todayRecord?.factors) {
+      setSelectedFactors(todayRecord.factors.map(f => f.type));
+    }
+  }, []);
+
+  useDidShow(() => {
+    checkReminderTrigger();
+  });
 
   const checkReminderTrigger = () => {
     if (!reminder.enabled || !reminder.reminderTime) return;
@@ -144,6 +156,7 @@ const HomePage: React.FC = () => {
   };
 
   const handleDismissReminderAlert = () => {
+    dismissReminder();
     setShowReminderAlert(false);
   };
 

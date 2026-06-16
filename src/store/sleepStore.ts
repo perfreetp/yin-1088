@@ -16,6 +16,7 @@ const STORAGE_KEYS = {
   historyRecords: 'sleep_history_records',
   reminder: 'sleep_reminder',
   dormReminders: 'sleep_dorm_reminders',
+  initialized: 'sleep_initialized',
 };
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -51,6 +52,7 @@ interface SleepState {
   dormReminders: DormReminder[];
   historyRecords: SleepRecord[];
   consecutiveLateNights: number;
+  isInitialized: boolean;
 
   setScheduleMode: (mode: ScheduleMode) => void;
   setTodayRecord: (record: SleepRecord) => void;
@@ -66,6 +68,8 @@ interface SleepState {
   checkInSleep: (bedTime: string, wakeTime: string) => void;
   setReminderEnabled: (enabled: boolean) => void;
   setReminderMinutesBefore: (minutes: number) => void;
+  dismissReminder: () => void;
+  markInitialized: () => void;
   updateConsecutiveLateNights: () => void;
   getWeeklyStats: () => WeeklyStats;
 }
@@ -86,6 +90,7 @@ export const useSleepStore = create<SleepState>((set, get) => ({
   dormReminders: loadFromStorage<DormReminder[]>(STORAGE_KEYS.dormReminders, []),
   historyRecords: loadFromStorage<SleepRecord[]>(STORAGE_KEYS.historyRecords, []),
   consecutiveLateNights: 0,
+  isInitialized: loadFromStorage<boolean>(STORAGE_KEYS.initialized, false),
 
   setScheduleMode: (mode) => {
     set({ scheduleMode: mode });
@@ -99,7 +104,7 @@ export const useSleepStore = create<SleepState>((set, get) => ({
   },
 
   updateTodayFactors: (factors) => {
-    const { todayRecord, currentDate } = get();
+    const { todayRecord, currentDate, historyRecords } = get();
     const record = todayRecord || {
       id: generateId(),
       date: currentDate,
@@ -112,6 +117,20 @@ export const useSleepStore = create<SleepState>((set, get) => ({
     const updated = { ...record, factors };
     set({ todayRecord: updated });
     saveToStorage(STORAGE_KEYS.todayRecord, updated);
+
+    const existingIdx = historyRecords.findIndex(r => r.date === currentDate);
+    let newHistory: SleepRecord[];
+    if (existingIdx >= 0) {
+      newHistory = [...historyRecords];
+      newHistory[existingIdx] = { ...newHistory[existingIdx], factors };
+    } else {
+      newHistory = [...historyRecords, updated];
+    }
+    if (newHistory.length > 30) {
+      newHistory = newHistory.slice(-30);
+    }
+    set({ historyRecords: newHistory });
+    saveToStorage(STORAGE_KEYS.historyRecords, newHistory);
   },
 
   addDormReminder: (reminder) => {
@@ -245,6 +264,18 @@ export const useSleepStore = create<SleepState>((set, get) => ({
     saveToStorage(STORAGE_KEYS.reminder, reminder);
   },
 
+  dismissReminder: () => {
+    const today = dayjs().format('YYYY-MM-DD');
+    const reminder = { ...get().reminder, lastTriggeredDate: today };
+    set({ reminder });
+    saveToStorage(STORAGE_KEYS.reminder, reminder);
+  },
+
+  markInitialized: () => {
+    set({ isInitialized: true });
+    saveToStorage(STORAGE_KEYS.initialized, true);
+  },
+
   updateConsecutiveLateNights: () => {
     const { historyRecords, sleepPlan } = get();
     const lateThreshold = sleepPlan?.targetBedTime || '23:00';
@@ -257,8 +288,16 @@ export const useSleepStore = create<SleepState>((set, get) => ({
     for (const record of sorted) {
       if (!record.isCompleted) break;
       const [bh, bm] = record.bedTime.split(':').map(Number);
-      const bedTotalMin = bh * 60 + (bm || 0);
-      const isLate = bedTotalMin > thresholdTotalMin + 30;
+      let bedTotalMin = bh * 60 + (bm || 0);
+
+      let compareThreshold = thresholdTotalMin;
+      if (bh < 6 && thresholdHour >= 18) {
+        bedTotalMin += 1440;
+      } else if (bh >= 18 && thresholdHour < 6) {
+        compareThreshold += 1440;
+      }
+
+      const isLate = bedTotalMin > compareThreshold + 30;
       if (isLate) {
         count++;
       } else {

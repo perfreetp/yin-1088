@@ -5,7 +5,6 @@ import styles from './index.module.scss';
 import classnames from 'classnames';
 
 import { useSleepStore } from '@/store/sleepStore';
-import { mockCourses } from '@/data/mockData';
 import { getModeLabel, getFactorLabel } from '@/utils/sleepAlgorithm';
 import { ScheduleMode, Course, SleepFactor } from '@/types';
 
@@ -31,7 +30,7 @@ const emptyCourse: Omit<Course, 'id'> = {
 const PlanPage: React.FC = () => {
   const {
     scheduleMode, setScheduleMode, generateSleepPlan,
-    courses, updateCourses, addCourse, updateCourse, deleteCourse,
+    courses, addCourse, updateCourse, deleteCourse,
     constraints, toggleConstraint,
     sleepPlan, todayRecord, updateTodayFactors,
   } = useSleepStore();
@@ -46,9 +45,6 @@ const PlanPage: React.FC = () => {
   });
 
   useEffect(() => {
-    if (courses.length === 0) {
-      updateCourses(mockCourses);
-    }
     if (!sleepPlan) {
       generateSleepPlan();
     }
