@@ -94,14 +94,18 @@ export const mockWeeklyStats: WeeklyStats = {
   avgQuality: 76,
   sleepinessLevel: 62,
   focusLevel: 68,
+  lateNightCount: 2,
+  consecutiveLateNights: 0,
+  recoveryDays: 2,
+  sleepAdvice: '本周作息整体平稳，继续保持规律睡眠~',
   dailyRecords: [
-    { date: dayjs().subtract(6, 'day').format('MM-DD'), sleepDuration: 7.5, quality: 80, executionRate: 85, sleepiness: 55, focus: 75 },
-    { date: dayjs().subtract(5, 'day').format('MM-DD'), sleepDuration: 6.8, quality: 72, executionRate: 70, sleepiness: 68, focus: 62 },
-    { date: dayjs().subtract(4, 'day').format('MM-DD'), sleepDuration: 8.0, quality: 88, executionRate: 95, sleepiness: 45, focus: 85 },
-    { date: dayjs().subtract(3, 'day').format('MM-DD'), sleepDuration: 6.5, quality: 68, executionRate: 65, sleepiness: 75, focus: 55 },
-    { date: dayjs().subtract(2, 'day').format('MM-DD'), sleepDuration: 7.0, quality: 75, executionRate: 80, sleepiness: 60, focus: 70 },
-    { date: dayjs().subtract(1, 'day').format('MM-DD'), sleepDuration: 7.2, quality: 78, executionRate: 82, sleepiness: 58, focus: 72 },
-    { date: dayjs().format('MM-DD'), sleepDuration: 7.5, quality: 85, executionRate: 90, sleepiness: 50, focus: 80 }
+    { date: dayjs().subtract(6, 'day').format('MM-DD'), sleepDuration: 7.5, quality: 80, executionRate: 85, sleepiness: 55, focus: 75, factors: [], isLateNight: false },
+    { date: dayjs().subtract(5, 'day').format('MM-DD'), sleepDuration: 6.8, quality: 72, executionRate: 70, sleepiness: 68, focus: 62, factors: [], isLateNight: true },
+    { date: dayjs().subtract(4, 'day').format('MM-DD'), sleepDuration: 8.0, quality: 88, executionRate: 95, sleepiness: 45, focus: 85, factors: [], isLateNight: false },
+    { date: dayjs().subtract(3, 'day').format('MM-DD'), sleepDuration: 6.5, quality: 68, executionRate: 65, sleepiness: 75, focus: 55, factors: [], isLateNight: true },
+    { date: dayjs().subtract(2, 'day').format('MM-DD'), sleepDuration: 7.0, quality: 75, executionRate: 80, sleepiness: 60, focus: 70, factors: [], isLateNight: false },
+    { date: dayjs().subtract(1, 'day').format('MM-DD'), sleepDuration: 7.2, quality: 78, executionRate: 82, sleepiness: 58, focus: 72, factors: [], isLateNight: false },
+    { date: dayjs().format('MM-DD'), sleepDuration: 7.5, quality: 85, executionRate: 90, sleepiness: 50, focus: 80, factors: [], isLateNight: false }
   ]
 };
 

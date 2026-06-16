@@ -317,6 +317,11 @@ export const useSleepStore = create<SleepState>((set, get) => ({
       return d.isAfter(weekStart.subtract(1, 'day')) && d.isBefore(today.add(1, 'day'));
     });
 
+    const lateThreshold = sleepPlan?.targetBedTime || '23:00';
+    const thresholdHour = parseInt(lateThreshold.split(':')[0]);
+    const thresholdMinute = parseInt(lateThreshold.split(':')[1] || '0');
+    let thresholdTotalMin = thresholdHour * 60 + thresholdMinute;
+
     const dailyRecords: DailyStat[] = [];
     for (let i = 6; i >= 0; i--) {
       const date = today.subtract(i, 'day').format('YYYY-MM-DD');
@@ -325,7 +330,8 @@ export const useSleepStore = create<SleepState>((set, get) => ({
       const targetBed = sleepPlan?.targetBedTime || '22:30';
 
       let execRate = 0;
-      if (record?.isCompleted) {
+      let isLateNight = false;
+      if (record?.isCompleted && record.bedTime) {
         const [bh, bm] = record.bedTime.split(':').map(Number);
         const [th, tm] = targetBed.split(':').map(Number);
         const diff = Math.abs((bh * 60 + bm) - (th * 60 + tm));
@@ -333,11 +339,68 @@ export const useSleepStore = create<SleepState>((set, get) => ({
         else if (diff <= 60) execRate = 80;
         else if (diff <= 90) execRate = 60;
         else execRate = 40;
+
+        let bedTotalMin = bh * 60 + (bm || 0);
+        let compareThreshold = thresholdTotalMin;
+        if (bh < 6 && thresholdHour >= 18) {
+          bedTotalMin += 1440;
+        } else if (bh >= 18 && thresholdHour < 6) {
+          compareThreshold += 1440;
+        }
+        isLateNight = bedTotalMin > compareThreshold + 30;
       }
 
-      const phoneFactor = record?.factors?.find(f => f.type === 'phone');
-      const sleepiness = Math.min(100, Math.max(20, 80 - (record?.sleepDuration || 5) * 5 + (phoneFactor?.value || 0) * 0.3));
-      const focus = Math.min(100, Math.max(20, (record?.sleepDuration || 5) * 8 + (record?.quality || 50) * 0.3 - (phoneFactor?.value || 0) * 0.2));
+      const factorsList = record?.factors || [];
+      const phoneFactor = factorsList.find(f => f.type === 'phone');
+      const snackFactor = factorsList.find(f => f.type === 'snack');
+      const napFactor = factorsList.find(f => f.type === 'nap');
+      const coffeeFactor = factorsList.find(f => f.type === 'coffee');
+      const stressFactor = factorsList.find(f => f.type === 'stress');
+      const exerciseFactor = factorsList.find(f => f.type === 'exercise');
+
+      let sleepiness = 80 - (record?.sleepDuration || 5) * 5;
+      sleepiness += (phoneFactor?.value || 0) * 0.3;
+      sleepiness += (snackFactor?.value || 0) * 8;
+      sleepiness += Math.max(0, (napFactor?.value || 0) - 60) * 0.2;
+      sleepiness += (coffeeFactor?.value || 0) * 4;
+      sleepiness += (stressFactor?.value || 0) * 5;
+      sleepiness -= (exerciseFactor?.value || 0) * 0.05;
+      sleepiness = Math.min(100, Math.max(20, sleepiness));
+
+      let focus = (record?.sleepDuration || 5) * 8 + (record?.quality || 50) * 0.3;
+      focus -= (phoneFactor?.value || 0) * 0.2;
+      focus -= (snackFactor?.value || 0) * 5;
+      focus -= Math.max(0, (napFactor?.value || 0) - 90) * 0.2;
+      focus -= (coffeeFactor?.value || 0) * 2;
+      focus -= (stressFactor?.value || 0) * 4;
+      focus += (exerciseFactor?.value || 0) * 0.05;
+      focus = Math.min(100, Math.max(20, focus));
+
+      const factorIcons: DailyStat['factors'] = factorsList.map(f => {
+        const info = (() => {
+          switch (f.type) {
+            case 'phone': return { icon: '📱', label: '刷手机' };
+            case 'snack': return { icon: '🍔', label: '夜宵' };
+            case 'nap': return { icon: '😴', label: '补觉' };
+            case 'coffee': return { icon: '☕', label: '咖啡' };
+            case 'exercise': return { icon: '🏃', label: '运动' };
+            case 'stress': return { icon: '😰', label: '压力' };
+            default: return { icon: '📝', label: f.name || '因素' };
+          }
+        })();
+        return {
+          type: f.type,
+          icon: info.icon,
+          label: info.label,
+          value: f.value,
+          unit: f.unit,
+        };
+      });
+
+      let note = '';
+      if (isLateNight) note = '当日晚睡';
+      else if (record?.isCompleted && execRate >= 90) note = '执行优秀';
+      else if (!record?.isCompleted && factorIcons.length > 0) note = '仅记录因素';
 
       dailyRecords.push({
         date: dateLabel,
@@ -346,6 +409,9 @@ export const useSleepStore = create<SleepState>((set, get) => ({
         executionRate: execRate,
         sleepiness: Math.round(sleepiness),
         focus: Math.round(focus),
+        factors: factorIcons,
+        isLateNight,
+        note,
       });
     }
 
@@ -360,6 +426,31 @@ export const useSleepStore = create<SleepState>((set, get) => ({
     const avgSleepiness = dailyRecords.reduce((s, d) => s + d.sleepiness, 0) / 7;
     const avgFocus = dailyRecords.reduce((s, d) => s + d.focus, 0) / 7;
 
+    const lateNightCount = dailyRecords.filter(d => d.isLateNight).length;
+    let consecutiveLates = 0;
+    let recoveryDays = 0;
+    for (let i = dailyRecords.length - 1; i >= 0; i--) {
+      if (dailyRecords[i].isLateNight) consecutiveLates++;
+      else break;
+    }
+    for (let i = dailyRecords.length - 1; i >= 0; i--) {
+      if (!dailyRecords[i].isLateNight && dailyRecords[i].sleepDuration > 0) recoveryDays++;
+      else if (dailyRecords[i].isLateNight) break;
+    }
+
+    let sleepAdvice = '本周作息整体平稳，继续保持规律睡眠~';
+    if (consecutiveLates >= 3) {
+      sleepAdvice = '🔴 已连续3晚以上晚睡，强烈建议今晚早点睡，白天补觉不超过20分钟';
+    } else if (consecutiveLates >= 2) {
+      sleepAdvice = '🟡 连续2晚晚睡，今晚注意控制入睡时间，白天小睡不超过30分钟';
+    } else if (lateNightCount >= 3) {
+      sleepAdvice = '本周晚睡较多，建议调整节奏，尽量在目标时间前后30分钟内入睡';
+    } else if (recoveryDays >= 2) {
+      sleepAdvice = '💚 已连续恢复规律作息2天以上，坚持下去效果更明显';
+    } else if (lateNightCount === 0 && completedRecords.length >= 3) {
+      sleepAdvice = '🌟 本周没有晚睡记录，作息非常规律，请继续保持！';
+    }
+
     return {
       weekStart: weekStart.format('YYYY-MM-DD'),
       weekEnd: today.format('YYYY-MM-DD'),
@@ -369,6 +460,10 @@ export const useSleepStore = create<SleepState>((set, get) => ({
       sleepinessLevel: Math.round(avgSleepiness),
       focusLevel: Math.round(avgFocus),
       dailyRecords,
+      lateNightCount,
+      consecutiveLateNights: consecutiveLates,
+      recoveryDays,
+      sleepAdvice,
     };
   },
 }));

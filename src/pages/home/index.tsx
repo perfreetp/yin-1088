@@ -78,8 +78,7 @@ const HomePage: React.FC = () => {
     const nowMinutes = now.hour() * 60 + now.minute();
     const [rh, rm] = reminder.reminderTime.split(':').map(Number);
     const reminderMinutes = rh * 60 + rm;
-
-    if (Math.abs(nowMinutes - reminderMinutes) <= 1) {
+    if (nowMinutes >= reminderMinutes) {
       setShowReminderAlert(true);
     }
   };

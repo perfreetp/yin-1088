@@ -158,6 +158,97 @@ const ReportPage: React.FC = () => {
         </View>
       </View>
 
+      {(stats.lateNightCount > 0 || stats.consecutiveLateNights > 0 || stats.recoveryDays > 0) && (
+        <View className={styles.trendSection}>
+          <View className={styles.trendCard}>
+            <Text className={styles.sectionTitle}>🌙 晚睡趋势 & 建议</Text>
+            <View className={styles.trendStats}>
+              <View className={styles.trendStat}>
+                <Text className={styles.trendStatValue} style={{ color: stats.lateNightCount >= 3 ? '#EF4444' : '#F59E0B' }}>
+                  {stats.lateNightCount}
+                </Text>
+                <Text className={styles.trendStatLabel}>本周晚睡天数</Text>
+              </View>
+              <View className={styles.trendStat}>
+                <Text className={styles.trendStatValue} style={{ color: stats.consecutiveLateNights >= 3 ? '#EF4444' : stats.consecutiveLateNights >= 2 ? '#F59E0B' : '#22C55E' }}>
+                  {stats.consecutiveLateNights}
+                </Text>
+                <Text className={styles.trendStatLabel}>连续晚睡</Text>
+              </View>
+              <View className={styles.trendStat}>
+                <Text className={styles.trendStatValue} style={{ color: '#22C55E' }}>{stats.recoveryDays}</Text>
+                <Text className={styles.trendStatLabel}>恢复天数</Text>
+              </View>
+            </View>
+            <View className={styles.trendTimeline}>
+              {stats.dailyRecords.map(r => (
+                <View key={r.date} className={styles.trendTimelineItem}>
+                  <View className={classnames(
+                    styles.trendDot,
+                    r.isLateNight ? styles.dotLate : (r.sleepDuration > 0 ? styles.dotGood : styles.dotEmpty)
+                  )} />
+                  <Text className={styles.trendTimelineDate}>{r.date.slice(3)}</Text>
+                </View>
+              ))}
+            </View>
+            <View className={classnames(
+              styles.trendAdvice,
+              stats.consecutiveLateNights >= 3 ? styles.adviceWarn : stats.consecutiveLateNights >= 2 ? styles.adviceNote : styles.adviceGood
+            )}>
+              <Text className={styles.adviceText}>{stats.sleepAdvice}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {(() => {
+        const today = stats.dailyRecords[stats.dailyRecords.length - 1];
+        if (!today || today.factors.length === 0) return null;
+        return (
+          <View className={styles.factorSection}>
+            <View className={styles.factorCard}>
+              <Text className={styles.sectionTitle}>
+                {today.date.slice(5)} 今日影响因素
+                {today.note && <Text className={styles.factorNote}> · {today.note}</Text>}
+              </Text>
+              <View className={styles.factorGrid}>
+                {today.factors.map(f => (
+                  <View key={f.type} className={styles.factorItem}>
+                    <Text className={styles.factorItemIcon}>{f.icon}</Text>
+                    <View className={styles.factorItemInfo}>
+                      <Text className={styles.factorItemLabel}>{f.label}</Text>
+                      <Text className={styles.factorItemValue}>{f.value}{f.unit}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+              <View className={styles.factorImpact}>
+                <View className={styles.factorImpactItem}>
+                  <Text className={styles.factorImpactLabel}>困倦度</Text>
+                  <View className={styles.factorImpactBar}>
+                    <View className={styles.factorImpactFill} style={{
+                      width: `${today.sleepiness}%`,
+                      background: today.sleepiness >= 75 ? '#EF4444' : today.sleepiness >= 55 ? '#F59E0B' : '#22C55E'
+                    }} />
+                  </View>
+                  <Text className={styles.factorImpactValue}>{today.sleepiness}%</Text>
+                </View>
+                <View className={styles.factorImpactItem}>
+                  <Text className={styles.factorImpactLabel}>专注感</Text>
+                  <View className={styles.factorImpactBar}>
+                    <View className={styles.factorImpactFill} style={{
+                      width: `${today.focus}%`,
+                      background: today.focus >= 70 ? '#22C55E' : today.focus >= 45 ? '#F59E0B' : '#EF4444'
+                    }} />
+                  </View>
+                  <Text className={styles.factorImpactValue}>{today.focus}%</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        );
+      })()}
+
       <View className={styles.chartSection}>
         <View className={styles.chartCard}>
           <View className={styles.chartHeader}>
@@ -180,9 +271,22 @@ const ReportPage: React.FC = () => {
               <View key={record.date} className={styles.chartBarGroup}>
                 <View className={styles.chartBars}>
                   <View
-                    className={classnames(styles.chartBar, 'primary')}
+                    className={classnames(styles.chartBar, 'primary', record.isLateNight && styles.lateBar)}
                     style={{ height: getBarHeight(chartData[index].primary, chartData[index].max) }}
                   />
+                </View>
+                {record.isLateNight && (
+                  <Text className={styles.lateTag}>🌙</Text>
+                )}
+                <View className={styles.dayFactorTags}>
+                  {record.factors.slice(0, 3).map(f => (
+                    <Text
+                      key={f.type}
+                      className={styles.dayFactorTag}
+                    >
+                      {f.icon}
+                    </Text>
+                  ))}
                 </View>
                 <Text className={styles.chartDayLabel}>{record.date.slice(5)}</Text>
               </View>

@@ -106,6 +106,10 @@ export interface WeeklyStats {
   sleepinessLevel: number;
   focusLevel: number;
   dailyRecords: DailyStat[];
+  lateNightCount: number;
+  consecutiveLateNights: number;
+  recoveryDays: number;
+  sleepAdvice: string;
 }
 
 export interface DailyStat {
@@ -115,6 +119,9 @@ export interface DailyStat {
   executionRate: number;
   sleepiness: number;
   focus: number;
+  factors: { type: string; icon: string; label: string; value: number; unit: string }[];
+  isLateNight: boolean;
+  note?: string;
 }
 
 export interface RelaxExercise {

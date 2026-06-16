@@ -634,3 +634,92 @@
   font-size: $font-size-md;
   font-weight: $font-weight-medium;
 }
+
+.emptyCoursesHint {
+  background: linear-gradient(135deg, rgba(91, 109, 240, 0.1) 0%, rgba(155, 140, 255, 0.05) 100%);
+  border: 1rpx dashed rgba(91, 109, 240, 0.4);
+  border-radius: $radius-md;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  text-align: center;
+}
+
+.emptyHintIcon {
+  font-size: 48rpx;
+  margin-bottom: $spacing-sm;
+}
+
+.emptyHintText {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  margin-bottom: $spacing-xs;
+}
+
+.emptyHintSub {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: 1.5;
+}
+
+.emptySchedule {
+  opacity: 0.4;
+}
+
+.reminderAlertOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: $spacing-lg;
+}
+
+.reminderAlert {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-xl $spacing-lg;
+  border: 1rpx solid $color-border;
+  width: 100%;
+  max-width: 600rpx;
+  text-align: center;
+  box-shadow: 0 20rpx 60rpx rgba(0, 0, 0, 0.5);
+}
+
+.reminderAlertIcon {
+  font-size: 80rpx;
+  display: block;
+  margin-bottom: $spacing-md;
+}
+
+.reminderAlertTitle {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  display: block;
+  margin-bottom: $spacing-md;
+}
+
+.reminderAlertText {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  line-height: 1.7;
+  display: block;
+  margin-bottom: $spacing-xl;
+}
+
+.reminderAlertBtn {
+  @include button-reset;
+  width: 100%;
+  height: $button-height-md;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+}
