@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Button, ScrollView, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
@@ -6,58 +6,73 @@ import classnames from 'classnames';
 
 import { useSleepStore } from '@/store/sleepStore';
 import { mockCourses } from '@/data/mockData';
-import { generateSleepPlan as genPlan, getModeLabel, getFactorLabel } from '@/utils/sleepAlgorithm';
-import { ScheduleMode } from '@/types';
+import { getModeLabel, getFactorLabel } from '@/utils/sleepAlgorithm';
+import { ScheduleMode, Course, SleepFactor } from '@/types';
 
 const modes: { key: ScheduleMode; label: string; icon: string }[] = [
   { key: 'normal', label: '常规', icon: '📅' },
   { key: 'exam', label: '考试周', icon: '📚' },
-  { key: 'vacation', label: '假期', icon: '🌴' }
+  { key: 'vacation', label: '假期', icon: '🌴' },
 ];
 
 const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
-const constraintsData = [
-  { id: '1', type: 'curfew', name: '宿舍熄灯', icon: '🌙', time: '23:00', color: '#5B6DF0', bgColor: 'rgba(91, 109, 240, 0.2)' },
-  { id: '2', type: 'duty', name: '今晚值日', icon: '🧹', time: '22:00-22:30', color: '#F59E0B', bgColor: 'rgba(245, 158, 11, 0.2)' },
-  { id: '3', type: 'lateReturn', name: '晚自习晚归', icon: '📖', time: '22:30', color: '#22C55E', bgColor: 'rgba(34, 197, 94, 0.2)' },
-  { id: '4', type: 'earlyClass', name: '明天早八', icon: '⏰', time: '08:00', color: '#EF4444', bgColor: 'rgba(239, 68, 68, 0.2)' }
-];
-
 const factorTypes = ['phone', 'snack', 'nap', 'coffee', 'stress', 'exercise'];
 
+const emptyCourse: Omit<Course, 'id'> = {
+  name: '',
+  day: 1,
+  startTime: '08:00',
+  endTime: '09:40',
+  location: '',
+  isEarly: true,
+};
+
 const PlanPage: React.FC = () => {
-  const { scheduleMode, setScheduleMode, generateSleepPlan, courses, updateCourses } = useSleepStore();
-  const [activeConstraints, setActiveConstraints] = useState<string[]>(['1', '4']);
+  const {
+    scheduleMode, setScheduleMode, generateSleepPlan,
+    courses, updateCourses, addCourse, updateCourse, deleteCourse,
+    constraints, toggleConstraint,
+    sleepPlan, todayRecord, updateTodayFactors,
+  } = useSleepStore();
+
+  const [showCourseEditor, setShowCourseEditor] = useState(false);
+  const [editingCourse, setEditingCourse] = useState<Omit<Course, 'id'> & { id?: string }>(emptyCourse);
+  const [isEditing, setIsEditing] = useState(false);
+  const [showCourseList, setShowCourseList] = useState(false);
+
   const [factorValues, setFactorValues] = useState<Record<string, number>>({
-    phone: 0,
-    snack: 0,
-    nap: 0,
-    coffee: 0,
-    stress: 0,
-    exercise: 0
+    phone: 0, snack: 0, nap: 0, coffee: 0, stress: 0, exercise: 0,
   });
-  const [plan, setPlan] = useState(genPlan(mockCourses, scheduleMode));
 
   useEffect(() => {
-    updateCourses(mockCourses);
-    const newPlan = genPlan(mockCourses, scheduleMode);
-    setPlan(newPlan);
-  }, [scheduleMode]);
+    if (courses.length === 0) {
+      updateCourses(mockCourses);
+    }
+    if (!sleepPlan) {
+      generateSleepPlan();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (todayRecord?.factors) {
+      const vals: Record<string, number> = { phone: 0, snack: 0, nap: 0, coffee: 0, stress: 0, exercise: 0 };
+      todayRecord.factors.forEach(f => {
+        if (f.type in vals) vals[f.type] = f.value;
+      });
+      setFactorValues(vals);
+    }
+  }, [todayRecord?.factors?.length]);
+
+  const plan = useMemo(() => sleepPlan, [sleepPlan]);
 
   const handleModeChange = (mode: ScheduleMode) => {
     setScheduleMode(mode);
-    Taro.showToast({
-      title: `已切换到${getModeLabel(mode)}`,
-      icon: 'success'
-    });
-    console.log('[Plan] Mode changed to', mode);
+    Taro.showToast({ title: `已切换到${getModeLabel(mode)}`, icon: 'success' });
   };
 
   const handleConstraintToggle = (id: string) => {
-    setActiveConstraints(prev =>
-      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
-    );
+    toggleConstraint(id);
   };
 
   const handleFactorChange = (type: string, value: string) => {
@@ -65,13 +80,77 @@ const PlanPage: React.FC = () => {
     setFactorValues(prev => ({ ...prev, [type]: numValue }));
   };
 
+  const handleSaveFactors = () => {
+    const factors: SleepFactor[] = [];
+    factorTypes.forEach(type => {
+      const val = factorValues[type];
+      if (val > 0) {
+        const info = getFactorLabel(type);
+        factors.push({
+          id: Math.random().toString(36).substring(2, 9),
+          name: info.label,
+          type: type as SleepFactor['type'],
+          value: val,
+          unit: type === 'stress' ? '级' : (type === 'snack' || type === 'coffee') ? '次' : '分钟',
+        });
+      }
+    });
+    updateTodayFactors(factors);
+    Taro.showToast({ title: '因素已保存', icon: 'success' });
+  };
+
   const handleGeneratePlan = () => {
     generateSleepPlan();
-    Taro.showToast({
-      title: '计划已更新',
-      icon: 'success'
+    Taro.showToast({ title: '计划已更新', icon: 'success' });
+  };
+
+  const handleOpenAddCourse = () => {
+    setEditingCourse({ ...emptyCourse });
+    setIsEditing(false);
+    setShowCourseEditor(true);
+  };
+
+  const handleOpenEditCourse = (course: Course) => {
+    setEditingCourse({ ...course });
+    setIsEditing(true);
+    setShowCourseEditor(true);
+    setShowCourseList(false);
+  };
+
+  const handleSaveCourse = () => {
+    const c = editingCourse;
+    if (!c.name.trim()) {
+      Taro.showToast({ title: '请输入课程名', icon: 'none' });
+      return;
+    }
+    const isEarly = parseInt(c.startTime.split(':')[0]) < 9;
+    const courseData = { ...c, isEarly };
+
+    if (isEditing && c.id) {
+      updateCourse(c.id, courseData);
+      Taro.showToast({ title: '课程已更新', icon: 'success' });
+    } else {
+      addCourse({
+        id: Math.random().toString(36).substring(2, 9),
+        ...courseData,
+      } as Course);
+      Taro.showToast({ title: '课程已添加', icon: 'success' });
+    }
+    setShowCourseEditor(false);
+  };
+
+  const handleDeleteCourse = (id: string) => {
+    Taro.showModal({
+      title: '确认删除',
+      content: '确定要删除这门课程吗？',
+      success: (res) => {
+        if (res.confirm) {
+          deleteCourse(id);
+          Taro.showToast({ title: '已删除', icon: 'success' });
+          setShowCourseList(false);
+        }
+      },
     });
-    console.log('[Plan] Sleep plan regenerated');
   };
 
   const hasEarlyClass = (day: number) => {
@@ -86,7 +165,22 @@ const PlanPage: React.FC = () => {
     });
   };
 
-  const weekSleepHours = [7.5, 7, 8, 6.5, 7, 7.5, 8];
+  const getCourseAtSlot = (day: number, hour: number): Course | undefined => {
+    return courses.find(c => {
+      const startHour = parseInt(c.startTime.split(':')[0]);
+      return c.day === day && startHour === hour;
+    });
+  };
+
+  const weekSleepHours = useMemo(() => {
+    return [1, 2, 3, 4, 5, 6, 0].map(() => {
+      if (plan) {
+        const duration = plan.targetDuration;
+        return duration;
+      }
+      return 7.5;
+    });
+  }, [plan]);
 
   return (
     <ScrollView className={styles.container} scrollY>
@@ -102,32 +196,71 @@ const PlanPage: React.FC = () => {
         ))}
       </View>
 
-      <View className={styles.planOverview}>
-        <Text className={styles.planTitle}>🎯 今日睡眠目标</Text>
-        <View className={styles.planTimes}>
-          <View className={styles.planTimeBlock}>
-            <Text className={styles.planTimeLabel}>入睡</Text>
-            <Text className={styles.planTimeValue}>{plan.targetBedTime}</Text>
-            <Text className={styles.planTimeRange}>{plan.flexibleWindow.minBedTime}-{plan.flexibleWindow.maxBedTime}</Text>
+      {plan && (
+        <View className={styles.planOverview}>
+          <Text className={styles.planTitle}>🎯 今日睡眠目标</Text>
+          <View className={styles.planTimes}>
+            <View className={styles.planTimeBlock}>
+              <Text className={styles.planTimeLabel}>入睡</Text>
+              <Text className={styles.planTimeValue}>{plan.targetBedTime}</Text>
+              <Text className={styles.planTimeRange}>{plan.flexibleWindow.minBedTime}-{plan.flexibleWindow.maxBedTime}</Text>
+            </View>
+            <Text className={styles.planArrow}>→</Text>
+            <View className={styles.planTimeBlock}>
+              <Text className={styles.planTimeLabel}>起床</Text>
+              <Text className={styles.planTimeValue}>{plan.targetWakeTime}</Text>
+              <Text className={styles.planTimeRange}>{plan.flexibleWindow.minWakeTime}-{plan.flexibleWindow.maxWakeTime}</Text>
+            </View>
           </View>
-          <Text className={styles.planArrow}>→</Text>
-          <View className={styles.planTimeBlock}>
-            <Text className={styles.planTimeLabel}>起床</Text>
-            <Text className={styles.planTimeValue}>{plan.targetWakeTime}</Text>
-            <Text className={styles.planTimeRange}>{plan.flexibleWindow.minWakeTime}-{plan.flexibleWindow.maxWakeTime}</Text>
+          <View className={styles.planDuration}>
+            <Text className={styles.durationValue}>{plan.targetDuration}h</Text>
+            <Text className={styles.durationLabel}>目标睡眠时长</Text>
           </View>
+          {plan.constraints.length > 0 && (
+            <View className={styles.constraintHints}>
+              {plan.constraints.map(c => (
+                <Text key={c.id} className={styles.constraintHint}>
+                  🔒 {c.name}已纳入计划
+                </Text>
+              ))}
+            </View>
+          )}
         </View>
-        <View className={styles.planDuration}>
-          <Text className={styles.durationValue}>{plan.targetDuration}h</Text>
-          <Text className={styles.durationLabel}>目标睡眠时长</Text>
-        </View>
-      </View>
+      )}
 
       <View className={styles.section}>
         <View className={styles.sectionHeader}>
           <Text className={styles.sectionTitle}>📚 本周课程表</Text>
-          <Button className={styles.editButton} onClick={() => {}}>编辑</Button>
+          <View className={styles.headerButtons}>
+            <Button className={styles.editButton} onClick={() => setShowCourseList(!showCourseList)}>
+              {showCourseList ? '收起' : '管理'}
+            </Button>
+            <Button className={styles.editButton} onClick={handleOpenAddCourse}>+ 新增</Button>
+          </View>
         </View>
+
+        {showCourseList && courses.length > 0 && (
+          <View className={styles.courseList}>
+            {courses.map(course => (
+              <View key={course.id} className={styles.courseListItem}>
+                <View className={styles.courseListInfo}>
+                  <Text className={styles.courseListName}>
+                    {course.isEarly && <Text className={styles.earlyBadge}>早八</Text>}
+                    {course.name}
+                  </Text>
+                  <Text className={styles.courseListDetail}>
+                    {dayNames[course.day]} {course.startTime}-{course.endTime} {course.location}
+                  </Text>
+                </View>
+                <View className={styles.courseListActions}>
+                  <Text className={styles.courseEditBtn} onClick={() => handleOpenEditCourse(course)}>编辑</Text>
+                  <Text className={styles.courseDeleteBtn} onClick={() => handleDeleteCourse(course.id)}>删除</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         <View className={styles.scheduleGrid}>
           <View className={styles.dayHeader}>
             {dayNames.map((day, index) => (
@@ -139,28 +272,105 @@ const PlanPage: React.FC = () => {
           <View className={styles.timeSlots}>
             {[6, 8, 10, 12, 14, 16, 18, 20].map(hour => (
               <View key={hour} className={styles.timeRow}>
-                {[0, 1, 2, 3, 4, 5, 6].map(day => (
-                  <View
-                    key={day}
-                    className={classnames(
-                      styles.timeCell,
-                      hasClass(day, hour) && styles.hasClass,
-                      hasClass(day, hour) && hasEarlyClass(day) && hour < 9 && styles.isEarly
-                    )}
-                  />
-                ))}
+                {[0, 1, 2, 3, 4, 5, 6].map(day => {
+                  const courseAtSlot = getCourseAtSlot(day, hour);
+                  return (
+                    <View
+                      key={day}
+                      className={classnames(
+                        styles.timeCell,
+                        hasClass(day, hour) && styles.hasClass,
+                        hasClass(day, hour) && hasEarlyClass(day) && hour < 9 && styles.isEarly,
+                      )}
+                    >
+                      {courseAtSlot && (
+                        <Text className={styles.cellCourseName}>{courseAtSlot.name.slice(0, 2)}</Text>
+                      )}
+                    </View>
+                  );
+                })}
               </View>
             ))}
           </View>
         </View>
       </View>
 
+      {showCourseEditor && (
+        <View className={styles.modalOverlay} onClick={() => setShowCourseEditor(false)}>
+          <View className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <Text className={styles.modalTitle}>{isEditing ? '编辑课程' : '新增课程'}</Text>
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>课程名称</Text>
+              <Input
+                className={styles.formInput}
+                value={editingCourse.name}
+                onInput={(e) => setEditingCourse(prev => ({ ...prev, name: e.detail.value }))}
+                placeholder="如：高等数学"
+              />
+            </View>
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>星期</Text>
+              <View className={styles.dayPicker}>
+                {[1, 2, 3, 4, 5, 6, 0].map(d => (
+                  <View
+                    key={d}
+                    className={classnames(styles.dayPickerItem, editingCourse.day === d && styles.dayPickerActive)}
+                    onClick={() => setEditingCourse(prev => ({ ...prev, day: d }))}
+                  >
+                    <Text className={styles.dayPickerText}>{dayNames[d]}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+            <View className={styles.formRow}>
+              <View className={styles.formGroup}>
+                <Text className={styles.formLabel}>开始时间</Text>
+                <Input
+                  className={styles.formInput}
+                  value={editingCourse.startTime}
+                  onInput={(e) => setEditingCourse(prev => ({ ...prev, startTime: e.detail.value }))}
+                  placeholder="08:00"
+                />
+              </View>
+              <View className={styles.formGroup}>
+                <Text className={styles.formLabel}>结束时间</Text>
+                <Input
+                  className={styles.formInput}
+                  value={editingCourse.endTime}
+                  onInput={(e) => setEditingCourse(prev => ({ ...prev, endTime: e.detail.value }))}
+                  placeholder="09:40"
+                />
+              </View>
+            </View>
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>教室</Text>
+              <Input
+                className={styles.formInput}
+                value={editingCourse.location}
+                onInput={(e) => setEditingCourse(prev => ({ ...prev, location: e.detail.value }))}
+                placeholder="如：教学楼A101"
+              />
+            </View>
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>早八标记（9点前自动标记）</Text>
+              <Text className={styles.earlyPreview}>
+                {parseInt(editingCourse.startTime.split(':')[0]) < 9 ? '✅ 是早八课程' : '❌ 非早八课程'}
+              </Text>
+            </View>
+            <View className={styles.modalButtons}>
+              <Button className={styles.modalCancel} onClick={() => setShowCourseEditor(false)}>取消</Button>
+              <Button className={styles.modalConfirm} onClick={handleSaveCourse}>保存</Button>
+            </View>
+          </View>
+        </View>
+      )}
+
       <View className={styles.section}>
         <View className={styles.sectionHeader}>
           <Text className={styles.sectionTitle}>⚙️ 约束条件</Text>
         </View>
         <View className={styles.constraintsList}>
-          {constraintsData.map(constraint => (
+          {constraints.map(constraint => (
             <View key={constraint.id} className={styles.constraintItem}>
               <View
                 className={styles.constraintIcon}
@@ -173,7 +383,7 @@ const PlanPage: React.FC = () => {
                 <Text className={styles.constraintTime}>{constraint.time}</Text>
               </View>
               <View
-                className={classnames(styles.constraintToggle, activeConstraints.includes(constraint.id) && styles.active)}
+                className={classnames(styles.constraintToggle, constraint.enabled && styles.active)}
                 onClick={() => handleConstraintToggle(constraint.id)}
               >
                 <View className={styles.constraintToggleDot} />
@@ -181,11 +391,19 @@ const PlanPage: React.FC = () => {
             </View>
           ))}
         </View>
+        {constraints.some(c => c.enabled) && (
+          <View className={styles.constraintEffectHint}>
+            <Text className={styles.effectHintText}>
+              💡 已启用约束会自动调整睡眠窗口，点击"重新生成"查看效果
+            </Text>
+          </View>
+        )}
       </View>
 
       <View className={styles.factorsSection}>
         <View className={styles.sectionHeader}>
           <Text className={styles.sectionTitle}>📝 影响因素记录</Text>
+          <Button className={styles.editButton} onClick={handleSaveFactors}>保存</Button>
         </View>
         <View className={styles.factorsGrid}>
           {factorTypes.map(type => {

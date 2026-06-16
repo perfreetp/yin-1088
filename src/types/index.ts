@@ -51,6 +51,24 @@ export interface PlanConstraint {
   day: number[];
 }
 
+export interface ConstraintConfig {
+  id: string;
+  type: 'curfew' | 'duty' | 'lateReturn';
+  name: string;
+  icon: string;
+  time: string;
+  color: string;
+  bgColor: string;
+  enabled: boolean;
+}
+
+export interface ReminderConfig {
+  enabled: boolean;
+  minutesBefore: number;
+  reminderTime: string;
+  lastTriggeredDate: string;
+}
+
 export interface DormMate {
   id: string;
   name: string;

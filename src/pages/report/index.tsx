@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, Button, ScrollView, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
@@ -8,107 +8,89 @@ import dayjs from 'dayjs';
 import ProgressRing from '@/components/ProgressRing';
 
 import { useSleepStore } from '@/store/sleepStore';
-import { mockWeeklyStats, mockEncouragements, mockCareSummary } from '@/data/mockData';
+import { mockEncouragements } from '@/data/mockData';
 import { Encouragement } from '@/types';
 
 const chartTabs = [
   { key: 'duration', label: '睡眠时长' },
   { key: 'quality', label: '睡眠质量' },
-  { key: 'execution', label: '执行率' }
+  { key: 'execution', label: '执行率' },
 ];
 
 const healthTips = [
-  {
-    id: '1',
-    icon: '📱',
-    title: '减少睡前刷手机',
-    desc: '建议睡前30分钟放下手机，蓝光会抑制褪黑素分泌，影响入睡'
-  },
-  {
-    id: '2',
-    icon: '☕',
-    title: '下午少喝咖啡',
-    desc: '咖啡因的半衰期约6小时，下午3点后尽量避免摄入'
-  },
-  {
-    id: '3',
-    icon: '🏃',
-    title: '保持规律运动',
-    desc: '每天30分钟有氧运动可显著改善睡眠质量，但避免睡前3小时剧烈运动'
-  },
-  {
-    id: '4',
-    icon: '🌡️',
-    title: '控制卧室温度',
-    desc: '最适宜睡眠的室温是18-22°C，稍低的体温有助于入睡'
-  }
+  { id: '1', icon: '📱', title: '减少睡前刷手机', desc: '建议睡前30分钟放下手机，蓝光会抑制褪黑素分泌，影响入睡' },
+  { id: '2', icon: '☕', title: '下午少喝咖啡', desc: '咖啡因的半衰期约6小时，下午3点后尽量避免摄入' },
+  { id: '3', icon: '🏃', title: '保持规律运动', desc: '每天30分钟有氧运动可显著改善睡眠质量，但避免睡前3小时剧烈运动' },
+  { id: '4', icon: '🌡️', title: '控制卧室温度', desc: '最适宜睡眠的室温是18-22°C，稍低的体温有助于入睡' },
 ];
 
 const ReportPage: React.FC = () => {
-  const { addEncouragement } = useSleepStore();
+  const { getWeeklyStats, historyRecords, sleepPlan } = useSleepStore();
   const [activeChart, setActiveChart] = useState('duration');
   const [encouragements, setEncouragements] = useState<Encouragement[]>(mockEncouragements);
   const [newEncouragement, setNewEncouragement] = useState('');
   const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
 
-  const stats = mockWeeklyStats;
-  const summary = mockCareSummary;
+  const stats = useMemo(() => getWeeklyStats(), [historyRecords, sleepPlan]);
+
+  const summary = useMemo(() => {
+    const avgSleep = stats.avgSleepDuration;
+    const regularity = stats.executionRate;
+    let healthStatus: 'good' | 'normal' | 'warning' = 'normal';
+    let suggestion = '';
+
+    if (avgSleep >= 7 && regularity >= 80) {
+      healthStatus = 'good';
+      suggestion = '睡眠状况良好，请继续保持规律作息。';
+    } else if (avgSleep >= 6 && regularity >= 60) {
+      healthStatus = 'normal';
+      suggestion = '整体睡眠状况一般，建议保持规律作息，减少睡前使用手机的时间。';
+    } else {
+      healthStatus = 'warning';
+      suggestion = '睡眠状况需要关注，建议调整作息时间，必要时咨询专业医生。';
+    }
+
+    return { period: '近7天', avgSleep, regularity, healthStatus, suggestion };
+  }, [stats]);
 
   const weekStart = dayjs(stats.weekStart).format('MM月DD日');
   const weekEnd = dayjs(stats.weekEnd).format('MM月DD日');
 
   const handleChartChange = (key: string) => {
     setActiveChart(key);
-    console.log('[Report] Chart changed to:', key);
   };
 
   const handleSendEncouragement = () => {
     if (!newEncouragement.trim()) {
-      Taro.showToast({
-        title: '请输入鼓励内容',
-        icon: 'none'
-      });
+      Taro.showToast({ title: '请输入鼓励内容', icon: 'none' });
       return;
     }
     const newItem: Encouragement = {
       id: Math.random().toString(36).substring(2, 9),
       content: newEncouragement,
       timestamp: new Date().toISOString(),
-      isAnonymous: true
+      isAnonymous: true,
     };
     setEncouragements([newItem, ...encouragements]);
-    addEncouragement(newItem);
     setNewEncouragement('');
-    Taro.showToast({
-      title: '已发送鼓励',
-      icon: 'success'
-    });
-    console.log('[Report] Encouragement sent');
+    Taro.showToast({ title: '已发送鼓励', icon: 'success' });
   };
 
   const handleLike = (id: string) => {
     setLikedItems(prev => {
       const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
+      if (newSet.has(id)) newSet.delete(id);
+      else newSet.add(id);
       return newSet;
     });
-    console.log('[Report] Like toggled for:', id);
   };
 
   const handleShareSummary = () => {
     Taro.showActionSheet({
       itemList: ['分享给辅导员', '分享给家长', '生成图片'],
-      success: (res) => {
-        Taro.showToast({
-          title: '已生成摘要',
-          icon: 'success'
-        });
-        console.log('[Report] Summary shared, option:', res.tapIndex);
-      }
+      success: () => {
+        Taro.showToast({ title: '已生成摘要', icon: 'success' });
+      },
     });
   };
 
@@ -119,14 +101,10 @@ const ReportPage: React.FC = () => {
   const getChartData = () => {
     return stats.dailyRecords.map(record => {
       switch (activeChart) {
-        case 'duration':
-          return { primary: record.sleepDuration, max: 10 };
-        case 'quality':
-          return { primary: record.quality, max: 100 };
-        case 'execution':
-          return { primary: record.executionRate, max: 100 };
-        default:
-          return { primary: record.sleepDuration, max: 10 };
+        case 'duration': return { primary: record.sleepDuration, max: 10 };
+        case 'quality': return { primary: record.quality, max: 100 };
+        case 'execution': return { primary: record.executionRate, max: 100 };
+        default: return { primary: record.sleepDuration, max: 10 };
       }
     });
   };
@@ -139,7 +117,7 @@ const ReportPage: React.FC = () => {
     const labels: Record<string, { text: string; class: string }> = {
       good: { text: '状态良好', class: 'good' },
       normal: { text: '状态一般', class: 'normal' },
-      warning: { text: '需要关注', class: 'warning' }
+      warning: { text: '需要关注', class: 'warning' },
     };
     return labels[status] || labels.normal;
   };
@@ -288,10 +266,7 @@ const ReportPage: React.FC = () => {
                 <Text className={styles.encouragementSender}>
                   {item.isAnonymous ? '匿名同学' : item.senderName} · {formatTime(item.timestamp)}
                 </Text>
-                <View
-                  className={styles.encouragementLike}
-                  onClick={() => handleLike(item.id)}
-                >
+                <View className={styles.encouragementLike} onClick={() => handleLike(item.id)}>
                   <Text>{likedItems.has(item.id) ? '❤️' : '🤍'}</Text>
                   <Text>{likedItems.has(item.id) ? 1 : 0}</Text>
                 </View>
@@ -308,9 +283,7 @@ const ReportPage: React.FC = () => {
             placeholder="写一句鼓励的话..."
             maxlength={50}
           />
-          <Button className={styles.sendButton} onClick={handleSendEncouragement}>
-            发送
-          </Button>
+          <Button className={styles.sendButton} onClick={handleSendEncouragement}>发送</Button>
         </View>
       </View>
 
@@ -334,9 +307,7 @@ const ReportPage: React.FC = () => {
             </View>
           </View>
           <Text className={styles.summarySuggestion}>{summary.suggestion}</Text>
-          <Button className={styles.shareButton} onClick={handleShareSummary}>
-            📤 生成可分享摘要
-          </Button>
+          <Button className={styles.shareButton} onClick={handleShareSummary}>📤 生成可分享摘要</Button>
         </View>
       </View>
 

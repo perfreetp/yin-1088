@@ -1,38 +1,76 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, Button, ScrollView } from '@tarojs/components';
+import { View, Text, Button, ScrollView, Input } from '@tarojs/components';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import dayjs from 'dayjs';
-
+import classnames from 'classnames';
 
 import SleepCard from '@/components/SleepCard';
 import StatCard from '@/components/StatCard';
 import HabitTag from '@/components/HabitTag';
 
 import { useSleepStore } from '@/store/sleepStore';
-import { mockTodayRecord, mockWeeklyStats, mockCourses } from '@/data/mockData';
+import { mockTodayRecord, mockCourses } from '@/data/mockData';
 import { getModeLabel, getFactorLabel, calculateExecutionRate, getNapSuggestion } from '@/utils/sleepAlgorithm';
 
+const factorOptions = [
+  { type: 'phone', value: 45 },
+  { type: 'snack', value: 1 },
+  { type: 'nap', value: 30 },
+  { type: 'coffee', value: 2 },
+  { type: 'stress', value: 3 },
+  { type: 'exercise', value: 30 },
+];
 
 const HomePage: React.FC = () => {
-  const { scheduleMode, consecutiveLateNights, setTodayRecord, generateSleepPlan, updateCourses } = useSleepStore();
+  const {
+    scheduleMode, sleepPlan, todayRecord, consecutiveLateNights,
+    reminder, setReminderEnabled, setReminderMinutesBefore,
+    setTodayRecord, generateSleepPlan, updateCourses,
+    checkInSleep, updateTodayFactors, updateConsecutiveLateNights,
+    historyRecords, getWeeklyStats,
+  } = useSleepStore();
+
   const [currentTime, setCurrentTime] = useState(dayjs());
   const [selectedFactors, setSelectedFactors] = useState<string[]>([]);
-
-  const sleepRecord = mockTodayRecord;
-  const weeklyStats = mockWeeklyStats;
+  const [showCheckinModal, setShowCheckinModal] = useState(false);
+  const [checkinBedTime, setCheckinBedTime] = useState('23:00');
+  const [checkinWakeTime, setCheckinWakeTime] = useState('07:00');
+  const [showReminderAlert, setShowReminderAlert] = useState(false);
 
   useEffect(() => {
-    updateCourses(mockCourses);
-    generateSleepPlan();
-    setTodayRecord(mockTodayRecord);
-    
+    if (historyRecords.length === 0) {
+      updateCourses(mockCourses);
+      setTodayRecord(mockTodayRecord);
+      generateSleepPlan();
+    }
+    if (!sleepPlan) {
+      generateSleepPlan();
+    }
+    updateConsecutiveLateNights();
+
     const timer = setInterval(() => {
       setCurrentTime(dayjs());
-    }, 60000);
+      checkReminderTrigger();
+    }, 30000);
 
     return () => clearInterval(timer);
   }, []);
+
+  const checkReminderTrigger = () => {
+    if (!reminder.enabled || !reminder.reminderTime) return;
+    const now = dayjs();
+    const reminderDate = now.format('YYYY-MM-DD');
+    if (reminder.lastTriggeredDate === reminderDate) return;
+
+    const nowMinutes = now.hour() * 60 + now.minute();
+    const [rh, rm] = reminder.reminderTime.split(':').map(Number);
+    const reminderMinutes = rh * 60 + rm;
+
+    if (Math.abs(nowMinutes - reminderMinutes) <= 1) {
+      setShowReminderAlert(true);
+    }
+  };
 
   const greeting = useMemo(() => {
     const hour = currentTime.hour();
@@ -46,44 +84,67 @@ const HomePage: React.FC = () => {
     return currentTime.format('YYYY年MM月DD日 dddd');
   }, [currentTime]);
 
-  const targetBedTime = dayjs(`2000-01-01 22:30`);
+  const targetBedTime = sleepPlan?.targetBedTime || '22:30';
+  const targetWakeTime = sleepPlan?.targetWakeTime || '06:30';
+
   const countdown = useMemo(() => {
     const now = dayjs(`2000-01-01 ${currentTime.format('HH:mm')}`);
-    let target = targetBedTime;
+    let target = dayjs(`2000-01-01 ${targetBedTime}`);
     if (now.isAfter(target)) {
       target = target.add(1, 'day');
     }
     const diff = target.diff(now);
+    if (diff <= 0) return '已过入睡时间';
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     return `${hours}小时${minutes}分钟`;
   }, [currentTime, targetBedTime]);
 
-  const executionRate = calculateExecutionRate(sleepRecord.bedTime, '22:30');
+  const executionRate = todayRecord?.isCompleted
+    ? calculateExecutionRate(todayRecord.bedTime, targetBedTime)
+    : 0;
 
-  const factorOptions = [
-    { type: 'phone', value: 45 },
-    { type: 'snack', value: 1 },
-    { type: 'nap', value: 30 },
-    { type: 'coffee', value: 2 },
-    { type: 'stress', value: 3 },
-    { type: 'exercise', value: 30 }
-  ];
+  const weeklyStats = getWeeklyStats();
 
   const handleFactorToggle = (type: string) => {
-    setSelectedFactors(prev => 
-      prev.includes(type) 
-        ? prev.filter(f => f !== type)
-        : [...prev, type]
-    );
+    const newSelected = selectedFactors.includes(type)
+      ? selectedFactors.filter(f => f !== type)
+      : [...selectedFactors, type];
+    setSelectedFactors(newSelected);
+
+    const factors = newSelected.map(t => {
+      const opt = factorOptions.find(o => o.type === t);
+      const info = getFactorLabel(t);
+      return {
+        id: Math.random().toString(36).substring(2, 9),
+        name: info.label,
+        type: t as any,
+        value: opt?.value || 0,
+        unit: t === 'stress' ? '级' : (t === 'snack' || t === 'coffee') ? '次' : '分钟',
+      };
+    });
+    updateTodayFactors(factors);
   };
 
   const handleCheckin = () => {
-    Taro.showToast({
-      title: '打卡成功！',
-      icon: 'success'
-    });
-    console.log('[Home] Sleep check-in completed');
+    setShowCheckinModal(true);
+  };
+
+  const handleConfirmCheckin = () => {
+    checkInSleep(checkinBedTime, checkinWakeTime);
+    setShowCheckinModal(false);
+    Taro.showToast({ title: '打卡成功！', icon: 'success' });
+  };
+
+  const handleReminderToggle = () => {
+    setReminderEnabled(!reminder.enabled);
+    if (!reminder.enabled) {
+      Taro.showToast({ title: '降噪提醒已开启', icon: 'success' });
+    }
+  };
+
+  const handleDismissReminderAlert = () => {
+    setShowReminderAlert(false);
   };
 
   const handleActionClick = (action: string) => {
@@ -92,12 +153,14 @@ const HomePage: React.FC = () => {
       clear: '/pages/focus/index',
       dorm: '/pages/dorm/index',
       plan: '/pages/plan/index',
-      report: '/pages/report/index'
+      report: '/pages/report/index',
     };
     if (routes[action]) {
       Taro.switchTab({ url: routes[action] });
     }
   };
+
+  const sleepRecord = todayRecord || mockTodayRecord;
 
   return (
     <ScrollView className={styles.container} scrollY>
@@ -130,14 +193,47 @@ const HomePage: React.FC = () => {
         <View className={styles.planContent}>
           <View className={styles.planTimeItem}>
             <Text className={styles.planTimeLabel}>目标入睡</Text>
-            <Text className={styles.planTimeValue}>22:30</Text>
+            <Text className={styles.planTimeValue}>{targetBedTime}</Text>
           </View>
           <View className={styles.planDivider} />
           <View className={styles.planTimeItem}>
             <Text className={styles.planTimeLabel}>目标起床</Text>
-            <Text className={styles.planTimeValue}>06:30</Text>
+            <Text className={styles.planTimeValue}>{targetWakeTime}</Text>
           </View>
         </View>
+      </View>
+
+      <View className={styles.reminderCard}>
+        <View className={styles.reminderHeader}>
+          <View className={styles.reminderInfo}>
+            <Text className={styles.reminderIcon}>🔕</Text>
+            <Text className={styles.reminderLabel}>睡前降噪提醒</Text>
+          </View>
+          <View
+            className={classnames(styles.reminderToggle, reminder.enabled && styles.active)}
+            onClick={handleReminderToggle}
+          >
+            <View className={styles.reminderToggleDot} />
+          </View>
+        </View>
+        {reminder.enabled && (
+          <View className={styles.reminderDetail}>
+            <Text className={styles.reminderTime}>
+              提醒时间：{reminder.reminderTime || '未设置'}（入睡前{reminder.minutesBefore}分钟）
+            </Text>
+            <View className={styles.reminderMinutes}>
+              {[15, 30, 45].map(m => (
+                <View
+                  key={m}
+                  className={classnames(styles.minuteOption, reminder.minutesBefore === m && styles.minuteActive)}
+                  onClick={() => setReminderMinutesBefore(m)}
+                >
+                  <Text className={styles.minuteText}>{m}分钟前</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </View>
 
       <Button className={styles.checkinButton} onClick={handleCheckin}>
@@ -178,8 +274,15 @@ const HomePage: React.FC = () => {
         <View className={styles.warningCard}>
           <Text className={styles.warningIcon}>⚠️</Text>
           <View className={styles.warningContent}>
-            <Text className={styles.warningTitle}>补眠提醒</Text>
+            <Text className={styles.warningTitle}>
+              {consecutiveLateNights >= 3 ? '🔴 严重补眠提醒' : '🟡 补眠建议'}
+            </Text>
             <Text className={styles.warningText}>{getNapSuggestion(consecutiveLateNights)}</Text>
+            {consecutiveLateNights >= 3 && (
+              <Text className={styles.warningSubtext}>
+                连续{consecutiveLateNights}晚晚睡，请优先恢复规律作息
+              </Text>
+            )}
           </View>
         </View>
       )}
@@ -196,7 +299,7 @@ const HomePage: React.FC = () => {
                 label={factor.label}
                 value={`${value}${type === 'stress' ? '级' : type === 'snack' || type === 'coffee' ? '次' : '分钟'}`}
                 color={factor.color}
-                active={selectedFactors.includes(type)}
+                active={selectedFactors.includes(type) || (todayRecord?.factors?.some(f => f.type === type) ?? false)}
                 onClick={() => handleFactorToggle(type)}
               />
             );
@@ -221,6 +324,49 @@ const HomePage: React.FC = () => {
           </View>
         </View>
       </View>
+
+      {showCheckinModal && (
+        <View className={styles.modalOverlay} onClick={() => setShowCheckinModal(false)}>
+          <View className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <Text className={styles.modalTitle}>记录昨晚睡眠</Text>
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>昨晚入睡时间</Text>
+              <Input
+                className={styles.formInput}
+                value={checkinBedTime}
+                onInput={(e) => setCheckinBedTime(e.detail.value)}
+                placeholder="如 23:30"
+              />
+            </View>
+            <View className={styles.formGroup}>
+              <Text className={styles.formLabel}>今早起床时间</Text>
+              <Input
+                className={styles.formInput}
+                value={checkinWakeTime}
+                onInput={(e) => setCheckinWakeTime(e.detail.value)}
+                placeholder="如 07:00"
+              />
+            </View>
+            <View className={styles.modalButtons}>
+              <Button className={styles.modalCancel} onClick={() => setShowCheckinModal(false)}>取消</Button>
+              <Button className={styles.modalConfirm} onClick={handleConfirmCheckin}>确认打卡</Button>
+            </View>
+          </View>
+        </View>
+      )}
+
+      {showReminderAlert && (
+        <View className={styles.reminderAlertOverlay}>
+          <View className={styles.reminderAlert}>
+            <Text className={styles.reminderAlertIcon}>🔕</Text>
+            <Text className={styles.reminderAlertTitle}>降噪提醒</Text>
+            <Text className={styles.reminderAlertText}>
+              距离目标入睡时间还有{reminder.minutesBefore}分钟，请开始准备入睡，减少噪音和光线刺激
+            </Text>
+            <Button className={styles.reminderAlertBtn} onClick={handleDismissReminderAlert}>知道了，准备入睡</Button>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 };
