@@ -8,6 +8,7 @@ import dayjs from 'dayjs';
 import { useSleepStore } from '@/store/sleepStore';
 import { mockDormMates, mockDormReminders } from '@/data/mockData';
 import { DormReminder } from '@/types';
+import SleepReminder from '@/components/SleepReminder';
 
 const quickReminders = [
   { type: 'headphone', icon: '🎧', name: '请戴耳机', desc: '我要准备休息了', color: '#5B6DF0', bgColor: 'rgba(91, 109, 240, 0.2)' },
@@ -105,6 +106,7 @@ const DormPage: React.FC = () => {
   };
 
   return (
+    <>
     <ScrollView className={styles.container} scrollY>
       <View className={styles.headerCard}>
         <Text className={styles.headerTitle}>🏠 宿舍协同</Text>
@@ -262,6 +264,8 @@ const DormPage: React.FC = () => {
         </Button>
       </View>
     </ScrollView>
+    <SleepReminder />
+    </>
   );
 };
 

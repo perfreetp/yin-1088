@@ -5,6 +5,7 @@ import styles from './index.module.scss';
 import classnames from 'classnames';
 
 import { mockRelaxExercises } from '@/data/mockData';
+import SleepReminder from '@/components/SleepReminder';
 
 
 const noiseOptions = [
@@ -186,6 +187,7 @@ const FocusPage: React.FC = () => {
   const progress = ((selectedTime * 60 - timeLeft) / (selectedTime * 60)) * 360;
 
   return (
+    <>
     <ScrollView className={styles.container} scrollY>
       <View className={styles.headerCard}>
         <Text className={styles.headerTitle}>🧘 专注训练</Text>
@@ -366,6 +368,8 @@ const FocusPage: React.FC = () => {
         </View>
       </View>
     </ScrollView>
+    <SleepReminder />
+    </>
   );
 };
 

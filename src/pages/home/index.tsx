@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Button, ScrollView, Input } from '@tarojs/components';
-import { useDidShow } from '@tarojs/taro';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import dayjs from 'dayjs';
@@ -9,6 +8,7 @@ import classnames from 'classnames';
 import SleepCard from '@/components/SleepCard';
 import StatCard from '@/components/StatCard';
 import HabitTag from '@/components/HabitTag';
+import SleepReminder from '@/components/SleepReminder';
 
 import { useSleepStore } from '@/store/sleepStore';
 import { mockTodayRecord, mockCourses } from '@/data/mockData';
@@ -26,7 +26,7 @@ const factorOptions = [
 const HomePage: React.FC = () => {
   const {
     scheduleMode, sleepPlan, todayRecord, consecutiveLateNights,
-    reminder, setReminderEnabled, setReminderMinutesBefore, dismissReminder,
+    reminder, setReminderEnabled, setReminderMinutesBefore,
     setTodayRecord, generateSleepPlan, updateCourses,
     checkInSleep, updateTodayFactors, updateConsecutiveLateNights,
     getWeeklyStats, isInitialized, markInitialized,
@@ -37,7 +37,6 @@ const HomePage: React.FC = () => {
   const [showCheckinModal, setShowCheckinModal] = useState(false);
   const [checkinBedTime, setCheckinBedTime] = useState('23:00');
   const [checkinWakeTime, setCheckinWakeTime] = useState('07:00');
-  const [showReminderAlert, setShowReminderAlert] = useState(false);
 
   useEffect(() => {
     if (!isInitialized) {
@@ -53,7 +52,6 @@ const HomePage: React.FC = () => {
 
     const timer = setInterval(() => {
       setCurrentTime(dayjs());
-      checkReminderTrigger();
     }, 30000);
 
     return () => clearInterval(timer);
@@ -64,24 +62,6 @@ const HomePage: React.FC = () => {
       setSelectedFactors(todayRecord.factors.map(f => f.type));
     }
   }, []);
-
-  useDidShow(() => {
-    checkReminderTrigger();
-  });
-
-  const checkReminderTrigger = () => {
-    if (!reminder.enabled || !reminder.reminderTime) return;
-    const now = dayjs();
-    const reminderDate = now.format('YYYY-MM-DD');
-    if (reminder.lastTriggeredDate === reminderDate) return;
-
-    const nowMinutes = now.hour() * 60 + now.minute();
-    const [rh, rm] = reminder.reminderTime.split(':').map(Number);
-    const reminderMinutes = rh * 60 + rm;
-    if (nowMinutes >= reminderMinutes) {
-      setShowReminderAlert(true);
-    }
-  };
 
   const greeting = useMemo(() => {
     const hour = currentTime.hour();
@@ -154,11 +134,6 @@ const HomePage: React.FC = () => {
     }
   };
 
-  const handleDismissReminderAlert = () => {
-    dismissReminder();
-    setShowReminderAlert(false);
-  };
-
   const handleActionClick = (action: string) => {
     const routes: Record<string, string> = {
       relax: '/pages/focus/index',
@@ -175,6 +150,7 @@ const HomePage: React.FC = () => {
   const sleepRecord = todayRecord || mockTodayRecord;
 
   return (
+    <>
     <ScrollView className={styles.container} scrollY>
       <View className={styles.header}>
         <View className={styles.greeting}>
@@ -366,20 +342,9 @@ const HomePage: React.FC = () => {
           </View>
         </View>
       )}
-
-      {showReminderAlert && (
-        <View className={styles.reminderAlertOverlay}>
-          <View className={styles.reminderAlert}>
-            <Text className={styles.reminderAlertIcon}>🔕</Text>
-            <Text className={styles.reminderAlertTitle}>降噪提醒</Text>
-            <Text className={styles.reminderAlertText}>
-              距离目标入睡时间还有{reminder.minutesBefore}分钟，请开始准备入睡，减少噪音和光线刺激
-            </Text>
-            <Button className={styles.reminderAlertBtn} onClick={handleDismissReminderAlert}>知道了，准备入睡</Button>
-          </View>
-        </View>
-      )}
     </ScrollView>
+    <SleepReminder />
+    </>
   );
 };
 

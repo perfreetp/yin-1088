@@ -3,7 +3,7 @@ import Taro from '@tarojs/taro';
 import dayjs from 'dayjs';
 import {
   SleepRecord, SleepPlan, Course, DormReminder,
-  WeeklyStats, ScheduleMode, ConstraintConfig, ReminderConfig, SleepFactor, DailyStat
+  WeeklyStats, ScheduleMode, ConstraintConfig, ReminderConfig, SleepFactor, DailyStat, DailyPlanPreview
 } from '@/types';
 import { generateSleepPlan as genPlan } from '@/utils/sleepAlgorithm';
 
@@ -72,6 +72,7 @@ interface SleepState {
   markInitialized: () => void;
   updateConsecutiveLateNights: () => void;
   getWeeklyStats: () => WeeklyStats;
+  getWeekPreview: () => DailyPlanPreview[];
 }
 
 export const useSleepStore = create<SleepState>((set, get) => ({
@@ -402,8 +403,27 @@ export const useSleepStore = create<SleepState>((set, get) => ({
       else if (record?.isCompleted && execRate >= 90) note = '执行优秀';
       else if (!record?.isCompleted && factorIcons.length > 0) note = '仅记录因素';
 
+      let explanation = '';
+      if (record?.isCompleted) {
+        const reasons: string[] = [];
+        if (isLateNight) reasons.push('入睡时间比目标晚30分钟以上');
+        if (record.sleepDuration < 6) reasons.push('睡眠时长不足6小时');
+        if ((phoneFactor?.value || 0) >= 60) reasons.push('睡前刷手机1小时以上');
+        if ((snackFactor?.value || 0) >= 2) reasons.push('夜宵较多');
+        if ((napFactor?.value || 0) >= 90) reasons.push('白天补觉太久');
+        if ((stressFactor?.value || 0) >= 4) reasons.push('压力较大');
+        if (record.sleepDuration >= 7 && !isLateNight) reasons.push('睡眠充足且作息规律');
+        if ((exerciseFactor?.value || 0) >= 30) reasons.push('有运动助力');
+        explanation = reasons.length > 0 ? reasons.join('，') : '睡眠质量一般';
+      } else if (factorIcons.length > 0) {
+        explanation = `今日记录了${factorIcons.length}项影响因素，完成睡眠打卡后可看到完整分析`;
+      } else {
+        explanation = '今日暂无睡眠记录，完成打卡后生成分析';
+      }
+
       dailyRecords.push({
         date: dateLabel,
+        fullDate: date,
         sleepDuration: record?.sleepDuration || 0,
         quality: record?.quality || 0,
         executionRate: execRate,
@@ -412,6 +432,10 @@ export const useSleepStore = create<SleepState>((set, get) => ({
         factors: factorIcons,
         isLateNight,
         note,
+        explanation,
+        bedTime: record?.bedTime,
+        wakeTime: record?.wakeTime,
+        isCompleted: record?.isCompleted || false,
       });
     }
 
@@ -465,5 +489,79 @@ export const useSleepStore = create<SleepState>((set, get) => ({
       recoveryDays,
       sleepAdvice,
     };
+  },
+
+  getWeekPreview: () => {
+    const { courses, scheduleMode, sleepPlan } = get();
+    const preview: DailyPlanPreview[] = [];
+    const today = dayjs();
+
+    let targetBed = sleepPlan?.targetBedTime || '23:00';
+    const targetBedMin = parseInt(targetBed.split(':')[0]) * 60 + parseInt(targetBed.split(':')[1] || '0');
+
+    for (let i = 0; i < 7; i++) {
+      const d = today.add(i, 'day');
+      const dateStr = d.format('MM-DD');
+      const weekday = d.day();
+      const weekDayLabel = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][weekday];
+      const isToday = i === 0;
+
+      const dayCourses = courses.filter(c => c.day === weekday);
+      const hasCourse = dayCourses.length > 0;
+
+      let wakeMin: number;
+      let isEarly = false;
+      let earliestCourse: string | undefined;
+
+      if (hasCourse) {
+        const sorted = [...dayCourses].sort((a, b) => a.startTime.localeCompare(b.startTime));
+        const first = sorted[0];
+        earliestCourse = first.startTime;
+        const [fh, fm] = first.startTime.split(':').map(Number);
+        const firstMin = fh * 60 + fm;
+
+        if (first.isEarly || (fh === 8 && fm <= 10)) {
+          wakeMin = firstMin - 90;
+          isEarly = true;
+        } else {
+          wakeMin = firstMin - 60;
+        }
+      } else {
+        const isWeekend = weekday === 0 || weekday === 6;
+        if (scheduleMode === 'vacation') {
+          wakeMin = 9 * 60 + 30;
+        } else if (scheduleMode === 'exam') {
+          wakeMin = 7 * 60 + 30;
+        } else {
+          wakeMin = isWeekend ? 8 * 60 + 30 : 8 * 60;
+        }
+      }
+
+      if (wakeMin < 0) wakeMin += 1440;
+      const wakeTime = `${Math.floor(wakeMin / 60).toString().padStart(2, '0')}:${(wakeMin % 60).toString().padStart(2, '0')}`;
+
+      let sleepDurMin: number;
+      if (wakeMin >= targetBedMin) {
+        sleepDurMin = wakeMin - targetBedMin;
+      } else {
+        sleepDurMin = wakeMin + 1440 - targetBedMin;
+      }
+      const sleepDuration = Math.round(sleepDurMin / 60 * 10) / 10;
+
+      preview.push({
+        date: dateStr,
+        weekday,
+        weekDayLabel,
+        isToday,
+        targetBedTime: targetBed,
+        targetWakeTime: wakeTime,
+        sleepDuration,
+        hasCourse,
+        earliestCourse,
+        isEarly,
+      });
+    }
+
+    return preview;
   },
 }));

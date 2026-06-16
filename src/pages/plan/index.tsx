@@ -1,14 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, Button, ScrollView, Input } from '@tarojs/components';
-import { useDidShow } from '@tarojs/taro';
 import Taro from '@tarojs/taro';
 import styles from './index.module.scss';
 import classnames from 'classnames';
-import dayjs from 'dayjs';
 
 import { useSleepStore } from '@/store/sleepStore';
 import { getModeLabel, getFactorLabel } from '@/utils/sleepAlgorithm';
 import { ScheduleMode, Course, SleepFactor } from '@/types';
+import SleepReminder from '@/components/SleepReminder';
 
 const modes: { key: ScheduleMode; label: string; icon: string }[] = [
   { key: 'normal', label: '常规', icon: '📅' },
@@ -35,14 +34,13 @@ const PlanPage: React.FC = () => {
     courses, addCourse, updateCourse, deleteCourse,
     constraints, toggleConstraint,
     sleepPlan, todayRecord, updateTodayFactors,
-    reminder, dismissReminder,
+    getWeekPreview,
   } = useSleepStore();
 
   const [showCourseEditor, setShowCourseEditor] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Omit<Course, 'id'> & { id?: string }>(emptyCourse);
   const [isEditing, setIsEditing] = useState(false);
   const [showCourseList, setShowCourseList] = useState(false);
-  const [showReminderAlert, setShowReminderAlert] = useState(false);
 
   const [factorValues, setFactorValues] = useState<Record<string, number>>({
     phone: 0, snack: 0, nap: 0, coffee: 0, stress: 0, exercise: 0,
@@ -53,36 +51,6 @@ const PlanPage: React.FC = () => {
       generateSleepPlan();
     }
   }, []);
-
-  useDidShow(() => {
-    checkReminderTrigger();
-  });
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      checkReminderTrigger();
-    }, 30000);
-    return () => clearInterval(timer);
-  }, []);
-
-  const checkReminderTrigger = () => {
-    if (!reminder.enabled || !reminder.reminderTime) return;
-    const now = dayjs();
-    const reminderDate = now.format('YYYY-MM-DD');
-    if (reminder.lastTriggeredDate === reminderDate) return;
-
-    const nowMinutes = now.hour() * 60 + now.minute();
-    const [rh, rm] = reminder.reminderTime.split(':').map(Number);
-    const reminderMinutes = rh * 60 + rm;
-    if (nowMinutes >= reminderMinutes) {
-      setShowReminderAlert(true);
-    }
-  };
-
-  const handleDismissReminderAlert = () => {
-    dismissReminder();
-    setShowReminderAlert(false);
-  };
 
   useEffect(() => {
     if (todayRecord?.factors) {
@@ -202,17 +170,10 @@ const PlanPage: React.FC = () => {
     });
   };
 
-  const weekSleepHours = useMemo(() => {
-    return [1, 2, 3, 4, 5, 6, 0].map(() => {
-      if (plan) {
-        const duration = plan.targetDuration;
-        return duration;
-      }
-      return 7.5;
-    });
-  }, [plan]);
+  const weekPreview = useMemo(() => getWeekPreview(), [sleepPlan, courses, scheduleMode]);
 
   return (
+    <>
     <ScrollView className={styles.container} scrollY>
       <View className={styles.modeSelector}>
         {modes.map(mode => (
@@ -477,18 +438,47 @@ const PlanPage: React.FC = () => {
       </View>
 
       <View className={styles.weekPreview}>
-        <Text className={styles.weekTitle}>📊 本周睡眠预览</Text>
+        <View className={styles.weekPreviewHeader}>
+          <Text className={styles.weekTitle}>📅 未来7天睡眠预览</Text>
+          <Text className={styles.weekSubtitle}>随课程和模式自动调整</Text>
+        </View>
         <View className={styles.weekDays}>
-          {['一', '二', '三', '四', '五', '六', '日'].map((day, index) => (
-            <View key={day} className={styles.weekDay}>
-              <Text className={styles.weekDayName}>{day}</Text>
-              <View className={styles.weekDayBar}>
-                <View
-                  className={styles.weekDayFill}
-                  style={{ height: `${(weekSleepHours[index] / 9) * 100}%` }}
-                />
+          {weekPreview.map((day) => (
+            <View
+              key={day.date}
+              className={classnames(
+                styles.weekDayCard,
+                day.isToday && styles.todayCard,
+                day.isEarly && styles.earlyCard
+              )}
+            >
+              <View className={styles.weekDayHeader}>
+                <Text className={classnames(styles.weekDayName, day.isToday && styles.todayText)}>
+                  {day.weekDayLabel.slice(1)}
+                </Text>
+                <Text className={styles.weekDayDate}>{day.date}</Text>
               </View>
-              <Text className={styles.weekDayValue}>{weekSleepHours[index]}h</Text>
+              {day.isEarly && (
+                <Text className={styles.weekEarlyBadge}>早八</Text>
+              )}
+              <View className={styles.weekDayTimes}>
+                <View className={styles.weekTimeItem}>
+                  <Text className={styles.weekTimeLabel}>入睡</Text>
+                  <Text className={styles.weekTimeValue}>{day.targetBedTime}</Text>
+                </View>
+                <View className={styles.weekTimeDivider}>—</View>
+                <View className={styles.weekTimeItem}>
+                  <Text className={styles.weekTimeLabel}>起床</Text>
+                  <Text className={styles.weekTimeValue}>{day.targetWakeTime}</Text>
+                </View>
+              </View>
+              <View className={styles.weekDayDuration}>
+                <Text className={styles.weekDurationLabel}>时长</Text>
+                <Text className={styles.weekDurationValue}>{day.sleepDuration}h</Text>
+              </View>
+              {!day.hasCourse && (
+                <Text className={styles.weekNoCourse}>无课</Text>
+              )}
             </View>
           ))}
         </View>
@@ -497,20 +487,9 @@ const PlanPage: React.FC = () => {
       <Button className={styles.generateButton} onClick={handleGeneratePlan}>
         🔄 重新生成睡眠计划
       </Button>
-
-      {showReminderAlert && (
-        <View className={styles.reminderAlertOverlay}>
-          <View className={styles.reminderAlert}>
-            <Text className={styles.reminderAlertIcon}>🔕</Text>
-            <Text className={styles.reminderAlertTitle}>降噪提醒</Text>
-            <Text className={styles.reminderAlertText}>
-              距离目标入睡时间还有{reminder.minutesBefore}分钟，请开始准备入睡，减少噪音和光线刺激
-            </Text>
-            <Button className={styles.reminderAlertBtn} onClick={handleDismissReminderAlert}>知道了，准备入睡</Button>
-          </View>
-        </View>
-      )}
     </ScrollView>
+    <SleepReminder />
+    </>
   );
 };
 

@@ -99,13 +99,13 @@ export const mockWeeklyStats: WeeklyStats = {
   recoveryDays: 2,
   sleepAdvice: '本周作息整体平稳，继续保持规律睡眠~',
   dailyRecords: [
-    { date: dayjs().subtract(6, 'day').format('MM-DD'), sleepDuration: 7.5, quality: 80, executionRate: 85, sleepiness: 55, focus: 75, factors: [], isLateNight: false },
-    { date: dayjs().subtract(5, 'day').format('MM-DD'), sleepDuration: 6.8, quality: 72, executionRate: 70, sleepiness: 68, focus: 62, factors: [], isLateNight: true },
-    { date: dayjs().subtract(4, 'day').format('MM-DD'), sleepDuration: 8.0, quality: 88, executionRate: 95, sleepiness: 45, focus: 85, factors: [], isLateNight: false },
-    { date: dayjs().subtract(3, 'day').format('MM-DD'), sleepDuration: 6.5, quality: 68, executionRate: 65, sleepiness: 75, focus: 55, factors: [], isLateNight: true },
-    { date: dayjs().subtract(2, 'day').format('MM-DD'), sleepDuration: 7.0, quality: 75, executionRate: 80, sleepiness: 60, focus: 70, factors: [], isLateNight: false },
-    { date: dayjs().subtract(1, 'day').format('MM-DD'), sleepDuration: 7.2, quality: 78, executionRate: 82, sleepiness: 58, focus: 72, factors: [], isLateNight: false },
-    { date: dayjs().format('MM-DD'), sleepDuration: 7.5, quality: 85, executionRate: 90, sleepiness: 50, focus: 80, factors: [], isLateNight: false }
+    { date: dayjs().subtract(6, 'day').format('MM-DD'), fullDate: dayjs().subtract(6, 'day').format('YYYY-MM-DD'), sleepDuration: 7.5, quality: 80, executionRate: 85, sleepiness: 55, focus: 75, factors: [], isLateNight: false, explanation: '作息规律，睡眠质量良好', isCompleted: true },
+    { date: dayjs().subtract(5, 'day').format('MM-DD'), fullDate: dayjs().subtract(5, 'day').format('YYYY-MM-DD'), sleepDuration: 6.8, quality: 72, executionRate: 70, sleepiness: 68, focus: 62, factors: [], isLateNight: true, explanation: '入睡偏晚，睡眠时间不足', isCompleted: true },
+    { date: dayjs().subtract(4, 'day').format('MM-DD'), fullDate: dayjs().subtract(4, 'day').format('YYYY-MM-DD'), sleepDuration: 8.0, quality: 88, executionRate: 95, sleepiness: 45, focus: 85, factors: [], isLateNight: false, explanation: '睡眠充足，状态很好', isCompleted: true },
+    { date: dayjs().subtract(3, 'day').format('MM-DD'), fullDate: dayjs().subtract(3, 'day').format('YYYY-MM-DD'), sleepDuration: 6.5, quality: 68, executionRate: 65, sleepiness: 75, focus: 55, factors: [], isLateNight: true, explanation: '熬夜导致困倦感明显', isCompleted: true },
+    { date: dayjs().subtract(2, 'day').format('MM-DD'), fullDate: dayjs().subtract(2, 'day').format('YYYY-MM-DD'), sleepDuration: 7.0, quality: 75, executionRate: 80, sleepiness: 60, focus: 70, factors: [], isLateNight: false, explanation: '睡眠情况整体平稳', isCompleted: true },
+    { date: dayjs().subtract(1, 'day').format('MM-DD'), fullDate: dayjs().subtract(1, 'day').format('YYYY-MM-DD'), sleepDuration: 7.2, quality: 78, executionRate: 82, sleepiness: 58, focus: 72, factors: [], isLateNight: false, explanation: '睡眠情况整体平稳', isCompleted: true },
+    { date: dayjs().format('MM-DD'), fullDate: dayjs().format('YYYY-MM-DD'), sleepDuration: 7.5, quality: 85, executionRate: 90, sleepiness: 50, focus: 80, factors: [], isLateNight: false, explanation: '今日睡眠状态良好', isCompleted: true }
   ]
 };
 

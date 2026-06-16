@@ -6,6 +6,7 @@ import classnames from 'classnames';
 import dayjs from 'dayjs';
 
 import ProgressRing from '@/components/ProgressRing';
+import SleepReminder from '@/components/SleepReminder';
 
 import { useSleepStore } from '@/store/sleepStore';
 import { mockEncouragements } from '@/data/mockData';
@@ -30,6 +31,7 @@ const ReportPage: React.FC = () => {
   const [encouragements, setEncouragements] = useState<Encouragement[]>(mockEncouragements);
   const [newEncouragement, setNewEncouragement] = useState('');
   const [likedItems, setLikedItems] = useState<Set<string>>(new Set());
+  const [expandedDayIndex, setExpandedDayIndex] = useState<number | null>(6);
 
   const stats = useMemo(() => getWeeklyStats(), [historyRecords, sleepPlan]);
 
@@ -126,6 +128,7 @@ const ReportPage: React.FC = () => {
   const chartData = getChartData();
 
   return (
+    <>
     <ScrollView className={styles.container} scrollY>
       <View className={styles.headerCard}>
         <Text className={styles.headerTitle}>📊 本周睡眠报告</Text>
@@ -203,12 +206,13 @@ const ReportPage: React.FC = () => {
 
       {(() => {
         const today = stats.dailyRecords[stats.dailyRecords.length - 1];
-        if (!today || today.factors.length === 0) return null;
+        if (!today) return null;
+        const weekDay = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs(today.fullDate).day()];
         return (
           <View className={styles.factorSection}>
             <View className={styles.factorCard}>
               <Text className={styles.sectionTitle}>
-                {today.date.slice(5)} 今日影响因素
+                📅 {today.fullDate.slice(5)} {weekDay} 影响因素
                 {today.note && <Text className={styles.factorNote}> · {today.note}</Text>}
               </Text>
               <View className={styles.factorGrid}>
@@ -268,10 +272,22 @@ const ReportPage: React.FC = () => {
 
           <View className={styles.chartContainer}>
             {stats.dailyRecords.map((record, index) => (
-              <View key={record.date} className={styles.chartBarGroup}>
+              <View
+                key={record.date}
+                className={classnames(
+                  styles.chartBarGroup,
+                  expandedDayIndex === index && styles.expandedBar
+                )}
+                onClick={() => setExpandedDayIndex(expandedDayIndex === index ? null : index)}
+              >
                 <View className={styles.chartBars}>
                   <View
-                    className={classnames(styles.chartBar, 'primary', record.isLateNight && styles.lateBar)}
+                    className={classnames(
+                      styles.chartBar,
+                      'primary',
+                      record.isLateNight && styles.lateBar,
+                      expandedDayIndex === index && styles.activeBar
+                    )}
                     style={{ height: getBarHeight(chartData[index].primary, chartData[index].max) }}
                   />
                 </View>
@@ -288,10 +304,140 @@ const ReportPage: React.FC = () => {
                     </Text>
                   ))}
                 </View>
-                <Text className={styles.chartDayLabel}>{record.date.slice(5)}</Text>
+                <Text className={styles.chartDayLabel}>{record.date}</Text>
+                <Text className={styles.chartDayWeek}>
+                  {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs(record.fullDate).day()]}
+                </Text>
               </View>
             ))}
           </View>
+
+          {expandedDayIndex !== null && stats.dailyRecords[expandedDayIndex] && (() => {
+            const record = stats.dailyRecords[expandedDayIndex];
+            const isToday = record.fullDate === dayjs().format('YYYY-MM-DD');
+            return (
+              <View className={styles.reviewPanel}>
+                <View className={styles.reviewHeader}>
+                  <View className={styles.reviewDateInfo}>
+                    <Text className={styles.reviewDate}>
+                      {record.fullDate.slice(5)}
+                      {isToday && <Text className={styles.reviewTodayTag}> 今天</Text>}
+                    </Text>
+                    <Text className={styles.reviewWeek}>
+                      {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][dayjs(record.fullDate).day()]}
+                    </Text>
+                  </View>
+                  {record.note && (
+                    <View className={classnames(
+                      styles.reviewStatusBadge,
+                      record.isLateNight ? styles.badgeLate : record.isCompleted ? styles.badgeGood : styles.badgeNote
+                    )}>
+                      <Text className={styles.reviewStatusText}>{record.note}</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View className={styles.reviewSleepInfo}>
+                  <View className={styles.reviewInfoItem}>
+                    <Text className={styles.reviewInfoLabel}>入睡时间</Text>
+                    <Text className={styles.reviewInfoValue}>
+                      {record.bedTime || '--:--'}
+                    </Text>
+                  </View>
+                  <View className={styles.reviewInfoDivider} />
+                  <View className={styles.reviewInfoItem}>
+                    <Text className={styles.reviewInfoLabel}>起床时间</Text>
+                    <Text className={styles.reviewInfoValue}>
+                      {record.wakeTime || '--:--'}
+                    </Text>
+                  </View>
+                  <View className={styles.reviewInfoDivider} />
+                  <View className={styles.reviewInfoItem}>
+                    <Text className={styles.reviewInfoLabel}>睡眠时长</Text>
+                    <Text className={classnames(
+                      styles.reviewInfoValue,
+                      record.sleepDuration < 6 && !record.isCompleted ? '' : (record.sleepDuration < 6 ? styles.warn : styles.good)
+                    )}>
+                      {record.isCompleted ? `${record.sleepDuration}h` : '未打卡'}
+                    </Text>
+                  </View>
+                </View>
+
+                <View className={styles.reviewMetrics}>
+                  <View className={styles.reviewMetricItem}>
+                    <Text className={styles.reviewMetricLabel}>睡眠质量</Text>
+                    <View className={styles.reviewMetricBar}>
+                      <View
+                        className={classnames(styles.reviewMetricFill, styles.fillQuality)}
+                        style={{ width: `${record.quality || 0}%` }}
+                      />
+                    </View>
+                    <Text className={styles.reviewMetricValue}>{record.quality || 0}%</Text>
+                  </View>
+                  <View className={styles.reviewMetricItem}>
+                    <Text className={styles.reviewMetricLabel}>执行率</Text>
+                    <View className={styles.reviewMetricBar}>
+                      <View
+                        className={classnames(styles.reviewMetricFill, styles.fillExecution)}
+                        style={{ width: `${record.executionRate}%` }}
+                      />
+                    </View>
+                    <Text className={styles.reviewMetricValue}>{record.executionRate}%</Text>
+                  </View>
+                </View>
+
+                <View className={styles.reviewImpactSection}>
+                  <Text className={styles.reviewSectionTitle}>影响分析</Text>
+                  <View className={styles.reviewImpactRow}>
+                    <View className={styles.reviewImpactItem}>
+                      <Text className={styles.impactIcon}>😴</Text>
+                      <Text className={styles.impactLabel}>困倦度</Text>
+                      <View className={styles.impactBar}>
+                        <View className={styles.impactFill} style={{
+                          width: `${record.sleepiness}%`,
+                          background: record.sleepiness >= 75 ? '#EF4444' : record.sleepiness >= 55 ? '#F59E0B' : '#22C55E'
+                        }} />
+                      </View>
+                      <Text className={styles.impactValue}>{record.sleepiness}%</Text>
+                    </View>
+                    <View className={styles.reviewImpactItem}>
+                      <Text className={styles.impactIcon}>🎯</Text>
+                      <Text className={styles.impactLabel}>专注感</Text>
+                      <View className={styles.impactBar}>
+                        <View className={styles.impactFill} style={{
+                          width: `${record.focus}%`,
+                          background: record.focus >= 70 ? '#22C55E' : record.focus >= 45 ? '#F59E0B' : '#EF4444'
+                        }} />
+                      </View>
+                      <Text className={styles.impactValue}>{record.focus}%</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {record.factors.length > 0 && (
+                  <View className={styles.reviewFactors}>
+                    <Text className={styles.reviewSectionTitle}>影响因素</Text>
+                    <View className={styles.reviewFactorGrid}>
+                      {record.factors.map(f => (
+                        <View key={f.type} className={styles.reviewFactorItem}>
+                          <Text className={styles.factorIcon}>{f.icon}</Text>
+                          <View className={styles.factorInfo}>
+                            <Text className={styles.factorLabel}>{f.label}</Text>
+                            <Text className={styles.factorValue}>{f.value}{f.unit}</Text>
+                          </View>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                <View className={styles.reviewExplanation}>
+                  <Text className={styles.reviewExplanationIcon}>💡</Text>
+                  <Text className={styles.reviewExplanationText}>{record.explanation}</Text>
+                </View>
+              </View>
+            );
+          })()}
 
           <View className={styles.chartLegend}>
             <View className={styles.legendItem}>
@@ -430,6 +576,8 @@ const ReportPage: React.FC = () => {
         </View>
       </View>
     </ScrollView>
+    <SleepReminder />
+    </>
   );
 };
 

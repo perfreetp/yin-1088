@@ -114,6 +114,7 @@ export interface WeeklyStats {
 
 export interface DailyStat {
   date: string;
+  fullDate: string;
   sleepDuration: number;
   quality: number;
   executionRate: number;
@@ -122,6 +123,23 @@ export interface DailyStat {
   factors: { type: string; icon: string; label: string; value: number; unit: string }[];
   isLateNight: boolean;
   note?: string;
+  explanation: string;
+  bedTime?: string;
+  wakeTime?: string;
+  isCompleted: boolean;
+}
+
+export interface DailyPlanPreview {
+  date: string;
+  weekday: number;
+  weekDayLabel: string;
+  isToday: boolean;
+  targetBedTime: string;
+  targetWakeTime: string;
+  sleepDuration: number;
+  hasCourse: boolean;
+  earliestCourse?: string;
+  isEarly: boolean;
 }
 
 export interface RelaxExercise {
