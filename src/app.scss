@@ -1,0 +1,27 @@
+@use '@/styles/compat.scss';
+@use '@/styles/variables.scss' as *;
+
+// 全局样式
+page {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB',
+    sans-serif;
+  font-size: $font-size-md;
+  line-height: $line-height-normal;
+  color: $color-text-primary;
+  background: linear-gradient(180deg, $color-bg-gradient-start 0%, $color-bg-gradient-end 100%);
+  min-height: 100vh;
+}
+
+// 全局滚动条样式
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+// 通用容器
+.container {
+  padding: 0 $page-padding;
+  max-width: $max-content-width;
+  margin: 0 auto;
+}

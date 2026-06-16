@@ -1,0 +1,443 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  min-height: 100vh;
+  padding: 0 $page-padding;
+  padding-bottom: 120rpx;
+}
+
+.headerCard {
+  background: linear-gradient(135deg, rgba(91, 109, 240, 0.2) 0%, rgba(155, 140, 255, 0.1) 100%);
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  border: 1rpx solid rgba(91, 109, 240, 0.3);
+}
+
+.headerTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-sm;
+}
+
+.headerDesc {
+  font-size: $font-size-md;
+  color: $color-text-secondary;
+  line-height: 1.6;
+}
+
+.quietTimeCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-lg;
+  border: 1rpx solid $color-border;
+}
+
+.quietTimeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.quietTimeTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.quietTimeBadge {
+  padding: $spacing-xs $spacing-md;
+  background: rgba(34, 197, 94, 0.2);
+  border-radius: $radius-round;
+}
+
+.quietTimeBadgeText {
+  font-size: $font-size-xs;
+  color: $color-success;
+  font-weight: $font-weight-medium;
+}
+
+.quietTimeDisplay {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  padding: $spacing-md 0;
+}
+
+.quietTimeItem {
+  text-align: center;
+}
+
+.quietTimeLabel {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-xs;
+}
+
+.quietTimeValue {
+  font-size: $font-size-xxl;
+  font-weight: $font-weight-bold;
+  color: $color-primary-light;
+}
+
+.quietTimeDivider {
+  font-size: 32rpx;
+  color: $color-text-tertiary;
+}
+
+.reminderSection {
+  margin-bottom: $spacing-lg;
+}
+
+.sectionTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.quickReminders {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-md;
+  margin-bottom: $spacing-lg;
+}
+
+.reminderCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+  border: 1rpx solid $color-border;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.96);
+    opacity: 0.9;
+  }
+}
+
+.reminderIcon {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: $radius-md;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  margin-bottom: $spacing-sm;
+}
+
+.reminderName {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  text-align: center;
+  margin-bottom: $spacing-xs;
+}
+
+.reminderDesc {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  text-align: center;
+}
+
+.remindersList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.reminderItem {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+  border: 1rpx solid $color-border;
+}
+
+.reminderItemHeader {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-sm;
+}
+
+.reminderItemIcon {
+  font-size: 28rpx;
+}
+
+.reminderItemSender {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+}
+
+.reminderItemContent {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  line-height: 1.5;
+  margin-bottom: $spacing-sm;
+}
+
+.reminderItemFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.reminderItemTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+}
+
+.reminderItemActions {
+  display: flex;
+  gap: $spacing-sm;
+}
+
+.actionButton {
+  @include button-reset;
+  padding: $spacing-xs $spacing-md;
+  background: rgba(91, 109, 240, 0.15);
+  border-radius: $radius-round;
+  color: $color-primary-light;
+  font-size: $font-size-xs;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.96);
+  }
+
+  &.secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: $color-text-secondary;
+  }
+}
+
+.roommatesSection {
+  margin-bottom: $spacing-lg;
+}
+
+.roommatesList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.roommateItem {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-md;
+  border: 1rpx solid $color-border;
+  display: flex;
+  align-items: center;
+  gap: $spacing-md;
+}
+
+.roommateAvatar {
+  width: 88rpx;
+  height: 88rpx;
+  border-radius: $radius-round;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.roommateAvatarText {
+  font-size: $font-size-lg;
+  color: $color-text-white;
+  font-weight: $font-weight-semibold;
+}
+
+.roommateInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.roommateName {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  font-weight: $font-weight-medium;
+  margin-bottom: $spacing-xs;
+}
+
+.roommateSchedule {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.roommatePrefs {
+  display: flex;
+  gap: $spacing-xs;
+  margin-top: $spacing-xs;
+  flex-wrap: wrap;
+}
+
+.prefTag {
+  padding: 2rpx $spacing-sm;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: $radius-round;
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.agreementSection {
+  margin-bottom: $spacing-lg;
+}
+
+.agreementCard {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  border: 1rpx solid $color-border;
+}
+
+.agreementTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.agreementList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.agreementItem {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-md;
+  padding: $spacing-md;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: $radius-md;
+}
+
+.agreementCheck {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  border: 2rpx solid $color-border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2rpx;
+
+  &.checked {
+    background: $color-success;
+    border-color: $color-success;
+  }
+}
+
+.agreementCheckIcon {
+  font-size: 20rpx;
+  color: $color-text-white;
+}
+
+.agreementContent {
+  flex: 1;
+}
+
+.agreementText {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+  line-height: 1.5;
+}
+
+.agreementSubtext {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  margin-top: $spacing-xs;
+}
+
+.customReminder {
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  border: 1rpx solid $color-border;
+}
+
+.customReminderTitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-md;
+}
+
+.customReminderInput {
+  width: 100%;
+  min-height: 160rpx;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: $radius-md;
+  padding: $spacing-md;
+  color: $color-text-primary;
+  font-size: $font-size-md;
+  margin-bottom: $spacing-md;
+  border: none;
+}
+
+.anonymousRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.anonymousLabel {
+  font-size: $font-size-md;
+  color: $color-text-primary;
+}
+
+.anonymousToggle {
+  width: 88rpx;
+  height: 48rpx;
+  border-radius: $radius-round;
+  background: $color-bg-hover;
+  position: relative;
+  transition: all $transition-base;
+
+  &.active {
+    background: $color-primary;
+  }
+}
+
+.anonymousToggleDot {
+  width: 40rpx;
+  height: 40rpx;
+  border-radius: 50%;
+  background: $color-text-white;
+  position: absolute;
+  top: 4rpx;
+  left: 4rpx;
+  transition: all $transition-base;
+
+  .active & {
+    left: 44rpx;
+  }
+}
+
+.sendButton {
+  @include button-reset;
+  width: 100%;
+  height: $button-height-md;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-button;
+  color: $color-text-white;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  transition: all $transition-base;
+
+  &:active {
+    opacity: 0.9;
+    transform: scale(0.98);
+  }
+}
